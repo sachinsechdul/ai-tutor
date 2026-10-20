@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Tutor - Fun & Smart Learning Assistant</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brandYellow: '#FFD166',
+                        brandPink: '#FF6B6B',
+                        brandBlue: '#4ECDC4',
+                        brandPurple: '#A06CD5',
+                        brandDark: '#2C3E50',
+                    },
+                    fontFamily: {
+                        fredoka: ['Fredoka', 'sans-serif'],
+                        quicksand: ['Quicksand', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background: linear-gradient(135deg, #e0f7fa 0%, #fff9c4 50%, #f3e5f5 100%);
+            min-height: 100vh;
+        }
+        .chat-bubble-user {
+            background: linear-gradient(135deg, #4ECDC4, #2AB7CA);
+            border-radius: 20px 20px 4px 20px;
+        }
+        .chat-bubble-ai {
+            background: #FFFFFF;
+            border-radius: 20px 20px 20px 4px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.06);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.05);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.15);
+            border-radius: 10px;
+        }
+        .bounce-gentle {
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(-3%); }
+            50% { transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen text-slate-800 antialiased">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-white/80 backdrop-blur-md border-b-4 border-yellow-300 sticky top-0 z-40 px-4 py-3 shadow-sm">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-yellow-400 text-slate-800 p-2.5 rounded-2xl shadow-md transform -rotate-3">
+                    <i class="fa-solid fa-robot text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-fredoka text-2xl md:text-3xl font-bold text-slate-800 leading-none">AI-Tutor Buddy</h1>
+                    <p class="text-xs font-bold text-purple-600 tracking-wide uppercase">Your Fun Learning Helper!</p>
+                </div>
+            </div>
+
+            <!-- Header Controls -->
+            <div class="flex items-center space-x-2">
+                <!-- Audio Speech Toggle -->
+                <button id="ttsToggleBtn" onclick="toggleAudio()" class="px-3 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold text-sm flex items-center space-x-1 transition shadow-sm" title="Toggle Speech Output">
+                    <i id="ttsIcon" class="fa-solid fa-volume-high text-base"></i>
+                    <span id="ttsText" class="hidden sm:inline">Voice On</span>
+                </button>
+
+                <!-- API Key Config Button -->
+                <button onclick="openApiKeyModal()" class="px-3.5 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold text-sm flex items-center space-x-1.5 transition shadow-sm">
+                    <i class="fa-solid fa-key"></i>
+                    <span class="hidden sm:inline">API Key</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        <!-- Left Column: Camera Scanner & Mascot Buddy -->
+        <section class="lg:col-span-5 flex flex-col space-y-4">
+            
+            <!-- Camera / Worksheet Scanner Card -->
+            <div class="bg-white rounded-3xl p-4 shadow-xl border-4 border-teal-200 relative overflow-hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-fredoka text-lg font-bold text-teal-700 flex items-center space-x-2">
+                        <i class="fa-solid fa-camera-retro text-xl"></i>
+                        <span>Worksheet Scanner</span>
+                    </h2>
+                    <span id="cameraStatus" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-semibold">Camera Off</span>
+                </div>
+
+                <!-- Video Display / Photo Canvas Box -->
+                <div class="relative bg-slate-900 rounded-2xl aspect-video overflow-hidden flex items-center justify-center border-2 border-slate-100 shadow-inner">
+                    <video id="webcamVideo" autoplay playsinline class="w-full h-full object-cover hidden"></video>
+                    <canvas id="photoCanvas" class="hidden w-full h-full object-cover"></canvas>
+                    
+                    <!-- Fallback / Preview Placeholder -->
+                    <div id="cameraPlaceholder" class="text-center p-6 text-slate-400">
+                        <i class="fa-solid fa-file-signature text-5xl mb-2 text-teal-300 animate-pulse"></i>
+                        <p class="text-sm font-semibold">Click "Start Camera" to scan your homework or worksheets!</p>
+                    </div>
+
+                    <!-- Scanning Overlay Line -->
+                    <div id="scanOverlay" class="hidden absolute inset-0 bg-teal-500/10 pointer-events-none flex flex-col justify-between p-4">
+                        <div class="border-t-4 border-l-4 border-teal-400 w-8 h-8 rounded-tl-lg"></div>
+                        <div class="border-b-4 border-r-4 border-teal-400 w-8 h-8 rounded-br-lg self-end"></div>
+                    </div>
+                </div>
+
+                <!-- Camera Controls -->
+                <div class="mt-4 grid grid-cols-2 gap-2">
+                    <button id="toggleCamBtn" onclick="toggleCamera()" class="w-full py-2.5 bg-teal-500 hover:bg-teal-600 text-white font-bold rounded-2xl shadow-md transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-video"></i>
+                        <span id="camBtnText">Start Camera</span>
+                    </button>
+                    <button id="snapBtn" onclick="captureAndAnalyze()" disabled class="w-full py-2.5 bg-slate-200 text-slate-400 font-bold rounded-2xl shadow-sm cursor-not-allowed transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>Scan Homework</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- AI Tutor Friendly Mascot Panel -->
+            <div class="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-3xl p-5 text-white shadow-xl flex items-center space-x-4 border-4 border-purple-300">
+                <div class="relative flex-shrink-0">
+                    <div class="w-20 h-20 bg-yellow-300 rounded-full flex items-center justify-center shadow-lg border-4 border-white bounce-gentle">
+                        <i class="fa-solid fa-face-smile-beam text-4xl text-purple-700"></i>
+                    </div>
+                    <div id="speechIndicator" class="hidden absolute -top-1 -right-1 w-6 h-6 bg-green-400 border-2 border-white rounded-full flex items-center justify-center text-xs text-white animate-ping">
+                        <i class="fa-solid fa-volume-high"></i>
+                    </div>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-fredoka text-xl font-bold text-yellow-300">Hi, I'm Professor Spark! 🚀</h3>
+                    <p class="text-xs text-purple-100 mt-1 leading-relaxed">
+                        I can help you solve math puzzles, explain science secrets, check reading, or answer questions!
+                    </p>
+                </div>
+            </div>
+
+            <!-- Subject Shortcut Hints -->
+            <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-3 border border-white shadow-sm">
+                <p class="text-xs font-bold text-slate-500 uppercase mb-2 px-1">Quick Topics:</p>
+                <div class="flex flex-wrap gap-1.5">
+                    <button onclick="sendQuickPrompt('Explain how photosynthesis works in a fun simple way!')" class="text-xs font-bold bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1.5 rounded-xl transition">🌱 Science</button>
+                    <button onclick="sendQuickPrompt('Help me break down 34 x 12 step by step.')" class="text-xs font-bold bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded-xl transition">🔢 Math Help</button>
+                    <button onclick="sendQuickPrompt('Give me a fun 3-question quiz about planets!')" class="text-xs font-bold bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1.5 rounded-xl transition">🪐 Space Quiz</button>
+                    <button onclick="sendQuickPrompt('Check my spelling and tell me a story with word of the day.')" class="text-xs font-bold bg-pink-100 hover:bg-pink-200 text-pink-700 px-3 py-1.5 rounded-xl transition">📖 Reading</button>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right Column: Interactive Chat UI -->
+        <section class="lg:col-span-7 flex flex-col bg-white rounded-3xl shadow-xl border-4 border-yellow-200 overflow-hidden h-[580px] lg:h-auto">
+            
+            <!-- Chat Title Bar -->
+            <div class="bg-slate-50 border-b border-slate-100 p-3.5 px-5 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></span>
+                    <span class="font-fredoka font-bold text-slate-700">Learning Chat</span>
+                </div>
+                <button onclick="clearChat()" class="text-xs font-bold text-slate-400 hover:text-red-500 transition flex items-center space-x-1">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <span>Reset Chat</span>
+                </button>
+            </div>
+
+            <!-- Message Area -->
+            <div id="chatBox" class="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50/50">
+                <!-- Welcome Message -->
+                <div class="flex items-start space-x-3 chat-bubble-ai p-4 border border-slate-100 max-w-[88%]">
+                    <div class="w-8 h-8 rounded-full bg-yellow-400 text-slate-800 flex items-center justify-center flex-shrink-0 font-bold text-sm shadow">🤖</div>
+                    <div>
+                        <p class="font-bold text-xs text-purple-600 mb-1">Professor Spark</p>
+                        <p class="text-slate-700 text-sm leading-relaxed">
+                            Hello! 👋 I'm ready to learn together! Ask me any question, type below, talk with your microphone 🎤, or show me your worksheet with the camera!
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice Recognition Live Visualizer Bar -->
+            <div id="micActiveBar" class="hidden bg-pink-500 text-white text-xs px-4 py-2 font-bold flex items-center justify-between animate-pulse">
+                <span class="flex items-center space-x-2">
+                    <i class="fa-solid fa-microphone-lines text-sm"></i>
+                    <span>Listening... Speak clearly now!</span>
+                </span>
+                <span class="text-[10px] bg-pink-700 px-2 py-0.5 rounded-full">Web Speech API</span>
+            </div>
+
+            <!-- Chat Input Controls -->
+            <div class="p-3 bg-white border-t border-slate-100">
+                <form id="chatForm" onsubmit="handleUserSubmit(event)" class="flex items-center space-x-2">
+                    
+                    <!-- Voice Input Button -->
+                    <button type="button" id="micBtn" onclick="toggleVoiceInput()" class="w-12 h-12 rounded-2xl bg-pink-100 hover:bg-pink-200 text-pink-600 flex items-center justify-center transition flex-shrink-0 shadow-sm" title="Speak to Tutor">
+                        <i id="micIcon" class="fa-solid fa-microphone text-xl"></i>
+                    </button>
+
+                    <!-- Text Input Box -->
+                    <input type="text" id="userInput" placeholder="Ask a question or say hi..." autocomplete="off" class="flex-1 bg-slate-100 border-2 border-slate-200 focus:border-purple-400 focus:bg-white rounded-2xl px-4 py-3 text-sm font-semibold outline-none transition">
+
+                    <!-- Send Button -->
+                    <button type="submit" id="sendBtn" class="w-12 h-12 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center transition flex-shrink-0 shadow-md">
+                        <i class="fa-solid fa-paper-plane text-lg"></i>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal: API Key Setup -->
+    <div id="apiKeyModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-4 border-yellow-300 relative">
+            <button onclick="closeApiKeyModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            
+            <div class="text-center mb-5">
+                <div class="w-14 h-14 bg-yellow-100 rounded-2xl text-yellow-600 flex items-center justify-center mx-auto mb-2 text-2xl">
+                    <i class="fa-solid fa-key"></i>
+                </div>
+                <h3 class="font-fredoka text-2xl font-bold text-slate-800">Set Gemini API Key</h3>
+                <p class="text-xs text-slate-500 mt-1">Enter your free key to unlock full AI tutor capabilities!</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Google Gemini API Key</label>
+                    <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full bg-slate-100 border-2 border-slate-200 focus:border-yellow-400 rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                </div>
+
+                <div class="bg-purple-50 p-3 rounded-xl border border-purple-100 text-xs text-purple-700 leading-relaxed">
+                    <p class="font-bold mb-1">💡 How to get a free API Key:</p>
+                    <ol class="list-decimal list-inside space-y-0.5">
+                        <li>Visit Google AI Studio (<a href="https://aistudio.google.com/" target="_blank" class="underline font-bold">aistudio.google.com</a>)</li>
+                        <li>Click <strong>"Get API key"</strong></li>
+                        <li>Create a free key and paste it above!</li>
+                    </ol>
+                </div>
+
+                <button onclick="saveApiKey()" class="w-full py-3 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-xl shadow-md transition">
+                    Save Key & Start Learning
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // State variables
+        let apiKey = localStorage.getItem('GEMINI_API_KEY') || '';
+        let ttsEnabled = true;
+        let stream = null;
+        let recognition = null;
+        let isListening = false;
+        let synth = window.speechSynthesis;
+
+        // On Load initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            initSpeechRecognition();
+            if (!apiKey) {
+                // Friendly popup for new users
+                setTimeout(() => openApiKeyModal(), 1000);
+            }
+        });
+
+        // 1. API Key Functions
+        function openApiKeyModal() {
+            document.getElementById('apiKeyInput').value = apiKey;
+            document.getElementById('apiKeyModal').classList.remove('hidden');
+        }
+
+        function closeApiKeyModal() {
+            document.getElementById('apiKeyModal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (key) {
+                apiKey = key;
+                localStorage.setItem('GEMINI_API_KEY', key);
+                closeApiKeyModal();
+                appendBotMessage("Yay! Your API key is saved. What shall we learn today?");
+            } else {
+                alert("Please enter a valid API key.");
+            }
+        }
+
+        // 2. Audio & Speech Synthesis (Text-To-Speech)
+        function toggleAudio() {
+            ttsEnabled = !ttsEnabled;
+            const icon = document.getElementById('ttsIcon');
+            const text = document.getElementById('ttsText');
+
+            if (ttsEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-base';
+                text.textContent = 'Voice On';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-base text-slate-400';
+                text.textContent = 'Voice Off';
+                synth.cancel();
+            }
+        }
+
+        function speakText(text) {
+            if (!ttsEnabled || !('speechSynthesis' in window)) return;
+            synth.cancel(); // Stop any active speech
+
+            // Strip Markdown formatting for cleaner speech output
+            const cleanText = text.replace(/[*_#`~]/g, '');
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.rate = 0.95; // Slightly slower, friendly speed for kids
+            utterance.pitch = 1.1; // Higher, cheerful pitch
+
+            utterance.onstart = () => {
+                document.getElementById('speechIndicator').classList.remove('hidden');
+            };
+            utterance.onend = utterance.onerror = () => {
+                document.getElementById('speechIndicator').classList.add('hidden');
+            };
+
+            synth.speak(utterance);
+        }
+
+        // 3. Web Speech Recognition (Speech-To-Text)
+        function initSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                console.warn('Speech Recognition not supported in this browser.');
+                document.getElementById('micBtn').disabled = true;
+                document.getElementById('micBtn').title = 'Speech Recognition not supported in this browser';
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isListening = true;
+                document.getElementById('micActiveBar').classList.remove('hidden');
+                document.getElementById('micIcon').className = 'fa-solid fa-microphone-slash text-xl text-pink-600';
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('userInput').value = transcript;
+                handleUserSubmit();
+            };
+
+            recognition.onerror = recognition.onend = () => {
+                isListening = false;
+                document.getElementById('micActiveBar').classList.add('hidden');
+                document.getElementById('micIcon').className = 'fa-solid fa-microphone text-xl text-pink-600';
+            };
+        }
+
+        function toggleVoiceInput() {
+            if (!recognition) return;
+            if (isListening) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+
+        // 4. Camera & Worksheet Capture Functions
+        async function toggleCamera() {
+            const video = document.getElementById('webcamVideo');
+            const placeholder = document.getElementById('cameraPlaceholder');
+            const status = document.getElementById('cameraStatus');
+            const btnText = document.getElementById('camBtnText');
+            const snapBtn = document.getElementById('snapBtn');
+            const overlay = document.getElementById('scanOverlay');
+
+            if (stream) {
+                // Stop camera
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                video.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+                overlay.classList.add('hidden');
+                status.textContent = 'Camera Off';
+                status.className = 'text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-semibold';
+                btnText.textContent = 'Start Camera';
+                snapBtn.disabled = true;
+                snapBtn.className = 'w-full py-2.5 bg-slate-200 text-slate-400 font-bold rounded-2xl shadow-sm cursor-not-allowed transition flex items-center justify-center space-x-2';
+            } else {
+                // Start camera
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+                    video.srcObject = stream;
+                    video.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                    overlay.classList.remove('hidden');
+                    status.textContent = 'Live Feed';
+                    status.className = 'text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-semibold';
+                    btnText.textContent = 'Stop Camera';
+                    snapBtn.disabled = false;
+                    snapBtn.className = 'w-full py-2.5 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold rounded-2xl shadow-md transition flex items-center justify-center space-x-2';
+                } catch (err) {
+                    alert('Camera access denied or unequipped: ' + err.message);
+                }
+            }
+        }
+
+        async function captureAndAnalyze() {
+            if (!stream) return;
+            const video = document.getElementById('webcamVideo');
+            const canvas = document.getElementById('photoCanvas');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const base64Image = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+            
+            appendUserMessage("📷 [Uploaded Worksheet Photo] Please inspect my homework and help me solve or check it!");
+            sendToGeminiApi("Please explain this worksheet image carefully for a student. Break it down step by step with child-friendly encouraging explanations.", base64Image);
+        }
+
+        // 5. Chat Engine & Gemini Integration
+        function appendUserMessage(text) {
+            const chatBox = document.getElementById('chatBox');
+            const msgHtml = `
+                <div class="flex items-start justify-end space-x-3">
+                    <div class="chat-bubble-user p-4 text-white font-medium text-sm max-w-[85%] shadow-md">
+                        ${escapeHtml(text)}
+                    </div>
+                </div>
+            `;
+            chatBox.insertAdjacentHTML('beforeend', msgHtml);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function appendBotMessage(text) {
+            const chatBox = document.getElementById('chatBox');
+            // Basic markdown styling conversion for simple bolding and lists
+            let formattedText = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+
+            const msgHtml = `
+                <div class="flex items-start space-x-3 chat-bubble-ai p-4 border border-slate-100 max-w-[88%]">
+                    <div class="w-8 h-8 rounded-full bg-yellow-400 text-slate-800 flex items-center justify-center flex-shrink-0 font-bold text-sm shadow">🤖</div>
+                    <div>
+                        <p class="font-bold text-xs text-purple-600 mb-1">Professor Spark</p>
+                        <div class="text-slate-700 text-sm leading-relaxed">${formattedText}</div>
+                    </div>
+                </div>
+            `;
+            chatBox.insertAdjacentHTML('beforeend', msgHtml);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            speakText(text);
+        }
+
+        function appendLoadingIndicator() {
+            const chatBox = document.getElementById('chatBox');
+            const id = 'loader-' + Date.now();
+            const loaderHtml = `
+                <div id="${id}" class="flex items-start space-x-3 chat-bubble-ai p-4 border border-slate-100 max-w-[88%]">
+                    <div class="w-8 h-8 rounded-full bg-yellow-400 text-slate-800 flex items-center justify-center flex-shrink-0 font-bold text-sm shadow">🤖</div>
+                    <div class="flex items-center space-x-2 text-purple-600 text-sm font-bold py-1">
+                        <i class="fa-solid fa-spinner animate-spin"></i>
+                        <span>Thinking...</span>
+                    </div>
+                </div>
+            `;
+            chatBox.insertAdjacentHTML('beforeend', loaderHtml);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return id;
+        }
+
+        function sendQuickPrompt(text) {
+            document.getElementById('userInput').value = text;
+            handleUserSubmit();
+        }
+
+        function handleUserSubmit(event) {
+            if (event) event.preventDefault();
+            const inputEl = document.getElementById('userInput');
+            const query = inputEl.value.trim();
+
+            if (!query) return;
+            inputEl.value = '';
+
+            appendUserMessage(query);
+            sendToGeminiApi(query);
+        }
+
+        async function sendToGeminiApi(promptText, base64Image = null) {
+            if (!apiKey) {
+                openApiKeyModal();
+                appendBotMessage("Please enter your Gemini API Key first so I can assist you!");
+                return;
+            }
+
+            const loaderId = appendLoadingIndicator();
+
+            try {
+                // Request construction for Gemini API
+                const systemPrompt = "You are Professor Spark, an encouraging, friendly, safety-conscious, patient AI Tutor for children. Use clear, simple language, emojis, step-by-step guidance, and cheerful positive reinforcement.";
+                
+                const parts = [{ text: promptText }];
+                if (base64Image) {
+                    parts.push({
+                        inlineData: {
+                            mimeType: "image/jpeg",
+                            data: base64Image
+                        }
+                    });
+                }
+
+                const payload = {
+                    contents: [{ parts: parts }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] }
+                };
+
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                document.getElementById(loaderId)?.remove();
+
+                if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+                    const aiReply = data.candidates[0].content.parts[0].text;
+                    appendBotMessage(aiReply);
+                } else if (data.error) {
+                    appendBotMessage(`Oops! API Error: ${data.error.message || 'Please check your API key.'}`);
+                } else {
+                    appendBotMessage("I had trouble understanding that. Could you try asking again?");
+                }
+
+            } catch (err) {
+                document.getElementById(loaderId)?.remove();
+                appendBotMessage("Network error! Please check your internet connection or API Key.");
+                console.error("Gemini API Request failed:", err);
+            }
+        }
+
+        function clearChat() {
+            document.getElementById('chatBox').innerHTML = `
+                <div class="flex items-start space-x-3 chat-bubble-ai p-4 border border-slate-100 max-w-[88%]">
+                    <div class="w-8 h-8 rounded-full bg-yellow-400 text-slate-800 flex items-center justify-center flex-shrink-0 font-bold text-sm shadow">🤖</div>
+                    <div>
+                        <p class="font-bold text-xs text-purple-600 mb-1">Professor Spark</p>
+                        <p class="text-slate-700 text-sm leading-relaxed">
+                            Chat reset! What fun topic shall we explore next? 🌟
+                        </p>
+                    </div>
+                </div>
+            `;
+            synth.cancel();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
